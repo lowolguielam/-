@@ -107,13 +107,17 @@ with sync_playwright() as p:
     print("结果会话数:", n)
 
     sessions=[]
-    for i in range(n):
+    try:
+      for i in range(n):
         items=page.query_selector_all('.message-list-left .results-list')
         if i>=len(items): break
         it=items[i]
         try: it.scroll_into_view_if_needed()
         except Exception: pass
-        nick=(it.inner_text() or '').strip().split('\n')[0]
+        try: nick=(it.inner_text() or '').strip().split('\n')[0]
+        except Exception as e:
+            print(f"  [{i+1}/{n}] 读会话名失败，跳过:", type(e).__name__)
+            continue
         al=alias(nick)
         try: it.click(force=True,timeout=4000)
         except Exception: continue
@@ -139,6 +143,8 @@ with sync_playwright() as p:
                 page.wait_for_timeout(150)
         sessions.append((al,sorted(collected.keys(),key=lambda x:x[0])))
         print(f"  [{i+1}/{n}] {al}: {len(sessions[-1][1])}条")
+    except Exception as e:
+      print(f"!! 中途异常，已收集 {len(sessions)}/{n} 会话，仍写盘:", type(e).__name__, e)
 
     md=[f"# {SLUG} 客服聊天(脱敏) {START}~{END}","",f"会话数: {len(sessions)}  总消息: {sum(len(m) for _,m in sessions)}",""]
     for al,msgs in sessions:
